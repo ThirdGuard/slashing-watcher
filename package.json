@@ -1,0 +1,14 @@
+{
+  "name": "slashing-watcher",
+  "version": "1.0.0",
+  "description": "typescript bot that continuously monitors the consensus layer for slashing events",
+  "main": "index.js",
+  "repository": "git@github.com:ThirdGuard/slashing-watcher.git",
+  "author": "Pri Patel <pripatel93@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.2"
+  }
+}
