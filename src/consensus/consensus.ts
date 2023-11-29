@@ -93,6 +93,39 @@ export class ConsensusClient {
         console.log(`Got genesis time [${genesisTime}] from Consensus Layer Client API`);
         return (this.genesisTime = genesisTime);
     }
+    public async getBlockHeader(blockId: BlockId, ignoreCache = false): Promise<BlockHeaderResponse | void> {
+        const cached: BlockCache = this.cache.get(String(blockId));
+        if (!ignoreCache && cached && (cached.missed || cached.header)) {
+            console.debug(`Get ${blockId} header from blocks cache`);
+            return cached.missed ? undefined : cached.header;
+        }
+
+        const blockHeader = await this.retryRequest<BlockHeaderResponse>(
+            async (apiURL: string) => this.apiGet(apiURL, this.endpoints.beaconHeaders(blockId)),
+            {
+                maxRetries: CL_API_GET_BLOCK_INFO_MAX_RETRIES,
+                useFallbackOnRejected: (last_fallback_err, curr_fallback_error) => {
+                    if (last_fallback_err && last_fallback_err.$httpCode == 404 && curr_fallback_error.$httpCode != 404) {
+                        console.debug('Request error from last fallback was 404, but current is not. Will be used previous error');
+                        throw last_fallback_err;
+                    }
+                    return true;
+                },
+            },
+        ).catch((e) => {
+            if (404 != e.$httpCode) {
+                console.error('Unexpected status code while fetching block header');
+                throw e;
+            }
+        });
+
+        if (!ignoreCache) {
+            const cached: BlockCache = this.cache.get(String(blockId));
+            this.cache.set(String(blockId), { missed: !blockHeader, header: blockHeader });
+        }
+
+        return blockHeader;
+    }
 
     public async getBlockInfo(blockId: BlockId): Promise<BlockInfoResponse | void> {
         const cached: BlockCache = this.cache.get(String(blockId));
