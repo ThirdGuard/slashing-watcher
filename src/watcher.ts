@@ -19,6 +19,8 @@ export class Watcher {
         this.consensus = new ConsensusClient(CONSENSUS_CLIENT_URI, new BlockCacheService());
         this.handlers = handlers;
         this.handledHeaders = [];
+    }
+
     public async run(slotsRange: string | undefined = SLOTS_RANGE) {
         // this.genesisTime = await this.consensus.getGenesis();
         const _run = async (slotToHandle: string = 'head') => {
@@ -92,7 +94,7 @@ export class Watcher {
                 if (this.handledHeaders.length > 0 && currentHead.header.message.slot === this.handledHeaders[this.handledHeaders.length - 1].header.message.slot) {
                     return null;
                 }
-                console.log("getBlockInfo")
+
                 const currentBlock = await this.consensus.getBlockInfo(currentHead.root);
 
                 //@todo
