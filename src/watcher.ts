@@ -1,6 +1,9 @@
 import { CONSENSUS_CLIENT_URI, CYCLE_SLEEP_IN_SECONDS, SECONDS_PER_SLOT, SLOTS_PER_EPOCH, SLOTS_RANGE } from './constants';
 import { ConsensusClient } from './consensus/consensus';
 import { BlockCacheService } from './consensus/block-cache';
+import { parseValidators, writeValidatorSlotsToFile } from './utils/validator-slots';
+
+import validatorSlotsFile from './validator-slots.json'
 
 const KEEP_MAX_HANDLED_HEADERS_COUNT = 96;
 
@@ -10,18 +13,28 @@ type NamedKey = any;
 type FullBlockInfo = any;
 type BaseSource = any;
 
+
+const validatorSlots = validatorSlotsFile as unknown as Record<string, string>
+
 export class Watcher {
     private consensus: ConsensusClient;
     private handlers: WatcherHandler[];
+    private validatorsUpdated: boolean;
+    public indexedValidatorsKeys: Record<string, string> = validatorSlots;
     private handledHeaders: any[];
 
     constructor(handlers: WatcherHandler[]) {
         this.consensus = new ConsensusClient(CONSENSUS_CLIENT_URI, new BlockCacheService());
         this.handlers = handlers;
+        this.validatorsUpdated = false;
         this.handledHeaders = [];
     }
 
     public async run(slotsRange: string | undefined = SLOTS_RANGE) {
+        if (!this.validatorsUpdated) {
+            await this.updateValidators();
+            this.validatorsUpdated = true;
+        }
         // this.genesisTime = await this.consensus.getGenesis();
         const _run = async (slotToHandle: string = 'head') => {
             const currentHead = await this.getHeaderFullInfo(slotToHandle);
@@ -84,6 +97,39 @@ export class Watcher {
             this.handledHeaders.shift(); // Removes the first element instead of the last one
         }
     }
+
+    public async updateValidators(): Promise<void> {
+        // Calculate the current slot based on the current time and genesis time
+        const now = Date.now() / 1000; // Date.now() returns milliseconds, so divide by 1000 to get seconds
+        const diff = now - await this.consensus.getGenesis();
+        // console.log(diff)
+        const slot = Math.floor(diff / SECONDS_PER_SLOT);
+        // console.log("slot", slot)
+
+        // Check if an update is needed
+        if (Object.keys(this.indexedValidatorsKeys).length > 0 && slot % SLOTS_PER_EPOCH !== 0) {
+            console.log("indexed validator slots exist")
+            return;
+        }
+
+        console.info('Updating indexed validators keys');
+
+        try {
+            // Assuming getValidatorsStream is an asynchronous method returning a Promise
+            const data = await this.consensus.getValidatorsState('head');
+            console.log("Received validator keys")
+
+            // // Assuming parseValidators is a method that processes the data and updates indexedValidatorsKeys
+            this.indexedValidatorsKeys = parseValidators(JSON.parse(data), this.indexedValidatorsKeys);
+
+            console.info(`Indexed validators keys updated`);
+            // VALIDATORS_INDEX_SLOT_NUMBER.set(slot); // Assuming VALIDATORS_INDEX_SLOT_NUMBER is a global or static variable
+            await writeValidatorSlotsToFile(this.indexedValidatorsKeys)
+        } catch (e: any) {
+            console.error(`Error while getting validators: ${e.message}`);
+        }
+    }
+
 
     private async getHeaderFullInfo(slot: string = 'head'): Promise<FullBlockInfo | null> {
         try {

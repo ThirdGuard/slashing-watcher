@@ -112,7 +112,7 @@ export class KeyCollector {
 
     async writeKeysToFile(validatorKeys: Validator[]) {
         //output to json file
-        const DIR = join(process.cwd(), "..");
+        const DIR = join(process.cwd());
         await outputFile(`${DIR}/src/lido-validator-keys.json`, JSON.stringify(validatorKeys, null, 2));
     }
 }

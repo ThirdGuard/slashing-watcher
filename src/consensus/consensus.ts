@@ -126,6 +126,11 @@ export class ConsensusClient {
 
         return blockHeader;
     }
+    public async getValidatorsState(stateId: StateId): Promise<string> {
+        return await this.retryRequest(async (apiURL: string) => await this.apiGetStream(apiURL, this.endpoints.validatorsState(stateId)), {
+            dataOnly: false,
+        });
+    }
 
     public async getBlockInfo(blockId: BlockId): Promise<BlockInfoResponse | void> {
         const cached: BlockCache = this.cache.get(String(blockId));
@@ -217,3 +222,38 @@ export class ConsensusClient {
             throw new ResponseError(`Error converting response body to JSON. Body: ${res.body}`);
         }
     }
+
+    protected async apiGetStream(apiURL: string, subUrl: string): Promise<string> {
+        const readStream = got.stream.get(urljoin(apiURL, subUrl), {
+            timeout: { ...REQUEST_TIMEOUT_POLICY_MS, response: CL_API_GET_RESPONSE_TIMEOUT },
+        });
+
+        return new Promise((resolve, reject) => {
+
+            let data = '';
+
+            readStream.on('response', (r: Response) => {
+                if (r.statusCode != 200) {
+                    reject(new HTTPError(r));
+                    return;
+                }
+
+                readStream.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                readStream.on('end', () => {
+                    resolve(data);
+                });
+            });
+
+            readStream.on('error', (e) => {
+                if (e instanceof HTTPError) {
+                    reject(new ResponseError(errRequest(<string>e.response.body, subUrl, apiURL), e.response.statusCode));
+                } else {
+                    reject(new ResponseError(errCommon(e.message, subUrl, apiURL)));
+                }
+            });
+        })
+    }
+}
