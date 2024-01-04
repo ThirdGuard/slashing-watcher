@@ -4,6 +4,7 @@ import { BlockCacheService } from './consensus/block-cache';
 import { parseValidators, writeValidatorSlotsToFile } from './utils/validator-slots';
 
 import validatorSlotsFile from './validator-slots.json'
+import { ethers } from 'ethers';
 
 const KEEP_MAX_HANDLED_HEADERS_COUNT = 96;
 
@@ -22,8 +23,10 @@ export class Watcher {
     private validatorsUpdated: boolean;
     public indexedValidatorsKeys: Record<string, string> = validatorSlots;
     private handledHeaders: any[];
+    public provider: ethers.providers.JsonRpcProvider;
 
-    constructor(handlers: WatcherHandler[]) {
+    constructor(handlers: WatcherHandler[], provider: ethers.providers.JsonRpcProvider) {
+        this.provider = provider;
         this.consensus = new ConsensusClient(CONSENSUS_CLIENT_URI, new BlockCacheService());
         this.handlers = handlers;
         this.validatorsUpdated = false;
