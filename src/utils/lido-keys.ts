@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { join } from 'path';
-import { outputFile } from 'fs-extra';
+import { outputFile, readFile } from 'fs-extra';
+import { PubKeyData } from "src/handlers/slashing";
 
 export const NODE_OPERATORS_REGISTRY_ADDRESS = "0x55032650b14df07b85bf18a3a3ec8e0af2e028d5";
 // export const LIDO_WITHDRAWAL_QUEUE = "0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1"
@@ -17,6 +18,10 @@ export type Validator = {
 }
 
 export class KeyCollector {
+    public cache: {
+        lastReadTime: number;
+        data?: PubKeyData[];
+    } = { lastReadTime: 0 };
     private noregistry: ethers.Contract;
 
     constructor(noregistry: ethers.Contract) {
@@ -114,5 +119,37 @@ export class KeyCollector {
         //output to json file
         const DIR = join(process.cwd());
         await outputFile(`${DIR}/src/lido-validator-keys.json`, JSON.stringify(validatorKeys, null, 2));
+    }
+
+    async getLidoKeys() {
+        const currentTime = Date.now();
+        const oneHour = 3600000; // One hour in milliseconds
+
+        // Check if an hour has passed since the last read
+        if (currentTime - this.cache.lastReadTime < oneHour) {
+            return this.cache.data; // Return cached data if less than an hour has passed
+        }
+
+        // Define the path to the JSON file
+        const jsonFilePath = join(__dirname, '../lido-validator-keys.json');
+
+        try {
+            // Read the JSON file asynchronously using fs-extra
+            const rawData = await readFile(jsonFilePath, 'utf-8');
+
+            // Parse the JSON data
+            const keys: PubKeyData[] = JSON.parse(rawData);
+
+            // Update cache
+            this.cache = {
+                lastReadTime: currentTime,
+                data: keys
+            };
+            return this.cache.data;
+        } catch (err) {
+            // Handle possible errors
+            console.error('Error reading file:', err);
+            throw err; // Rethrow the error to be handled by the caller
+        }
     }
 }

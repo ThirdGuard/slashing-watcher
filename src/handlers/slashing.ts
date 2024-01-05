@@ -1,10 +1,10 @@
 
 import { NETWORK_NAME, NODE_OPERATORS_REGISTRY_ADDRESS } from '../constants';
 import { WatcherHandler } from './handler';
-import keys from '../lido-validator-keys.json'
 import { Watcher } from 'src/watcher';
 import NODE_OPERATORS_REGISTRY_ABI from "../abi/NodeOperatorsRegistry.json";
 import { ethers } from 'ethers';
+import { KeyCollector } from '../utils/lido-keys';
 
 
 type Duty = 'proposer' | 'attester';
@@ -27,9 +27,22 @@ export type PubKeyData = {
 
 export class SlashingHandler extends WatcherHandler {
 
+    nodeOperatorRegistry: ethers.Contract;
+    lidoKeyClass: KeyCollector;
+
+    constructor(provider: ethers.providers.Provider) {
+        super()
+        this.nodeOperatorRegistry = new ethers.Contract(
+            NODE_OPERATORS_REGISTRY_ADDRESS,
+            NODE_OPERATORS_REGISTRY_ABI,
+            provider,
+        );
+        this.lidoKeyClass = new KeyCollector(this.nodeOperatorRegistry);
+    }
+
     override async handle(watcher: Watcher, head: FullBlockInfo): Promise<void> {
         const slashings: SlashingInfo[] = [];
-        const validatorKeys = keys as unknown as PubKeyData[]
+        const validatorKeys = (await this.lidoKeyClass.getLidoKeys() as PubKeyData[])
 
         head.message.body.proposer_slashings.forEach((proposerSlashing: any) => {
             // console.log("proposerSlashing", proposerSlashing)
@@ -101,11 +114,6 @@ export class SlashingHandler extends WatcherHandler {
         const allSlashings = slashings;
         // console.log(slashings)
 
-        const nodeOperatorRegistry = new ethers.Contract(
-            NODE_OPERATORS_REGISTRY_ADDRESS,
-            NODE_OPERATORS_REGISTRY_ABI,
-            watcher.provider,
-        );
         // get all unique node operators id
         let operatorKeys: any = {}
         slashings.forEach(slash => {
@@ -116,7 +124,7 @@ export class SlashingHandler extends WatcherHandler {
         const allOperators = Object.keys(operatorKeys);
 
         // map unique node operator ids to their name on-chain
-        const operatorNames = await Promise.all(allOperators.map(op => nodeOperatorRegistry.getNodeOperator(op, true)))
+        const operatorNames = await Promise.all(allOperators.map(op => this.nodeOperatorRegistry.getNodeOperator(op, true)))
         operatorNames.forEach((val, i) => {
             operatorKeys[allOperators[i]] = val.name;
         })
