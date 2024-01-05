@@ -1,9 +1,8 @@
 import { CONSENSUS_CLIENT_URI, CYCLE_SLEEP_IN_SECONDS, SECONDS_PER_SLOT, SLOTS_PER_EPOCH, SLOTS_RANGE } from './constants';
 import { ConsensusClient } from './consensus/consensus';
 import { BlockCacheService } from './consensus/block-cache';
-import { parseValidators, writeValidatorSlotsToFile } from './utils/validator-slots';
+import { ValidatorSlots, parseValidators, writeValidatorSlotsToFile } from './utils/validator-slots';
 
-import validatorSlotsFile from './validator-slots.json'
 import { ethers } from 'ethers';
 
 const KEEP_MAX_HANDLED_HEADERS_COUNT = 96;
@@ -15,13 +14,11 @@ type FullBlockInfo = any;
 type BaseSource = any;
 
 
-const validatorSlots = validatorSlotsFile as unknown as Record<string, string>
-
 export class Watcher {
     private consensus: ConsensusClient;
     private handlers: WatcherHandler[];
     private validatorsUpdated: boolean;
-    public indexedValidatorsKeys: Record<string, string> = validatorSlots;
+    public validatorSlots: ValidatorSlots = new ValidatorSlots();
     private handledHeaders: any[];
     public provider: ethers.providers.JsonRpcProvider;
 
@@ -109,8 +106,9 @@ export class Watcher {
         const slot = Math.floor(diff / SECONDS_PER_SLOT);
         // console.log("slot", slot)
 
+        const indexedValidatorsKeys = (await this.validatorSlots.getValidatorSlots() as Record<string, string>);
         // Check if an update is needed
-        if (Object.keys(this.indexedValidatorsKeys).length > 0 && slot % SLOTS_PER_EPOCH !== 0) {
+        if (Object.keys(indexedValidatorsKeys).length > 0 && slot % SLOTS_PER_EPOCH !== 0) {
             console.log("indexed validator slots exist")
             return;
         }
@@ -123,11 +121,11 @@ export class Watcher {
             console.log("Received validator keys")
 
             // // Assuming parseValidators is a method that processes the data and updates indexedValidatorsKeys
-            this.indexedValidatorsKeys = parseValidators(JSON.parse(data), this.indexedValidatorsKeys);
+            const newValidatorsKeys = parseValidators(JSON.parse(data), indexedValidatorsKeys);
 
             console.info(`Indexed validators keys updated`);
             // VALIDATORS_INDEX_SLOT_NUMBER.set(slot); // Assuming VALIDATORS_INDEX_SLOT_NUMBER is a global or static variable
-            await writeValidatorSlotsToFile(this.indexedValidatorsKeys)
+            await writeValidatorSlotsToFile(newValidatorsKeys)
         } catch (e: any) {
             console.error(`Error while getting validators: ${e.message}`);
         }

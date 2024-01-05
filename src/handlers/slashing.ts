@@ -43,12 +43,13 @@ export class SlashingHandler extends WatcherHandler {
     override async handle(watcher: Watcher, head: FullBlockInfo): Promise<void> {
         const slashings: SlashingInfo[] = [];
         const validatorKeys = (await this.lidoKeyClass.getLidoKeys() as PubKeyData[])
+        const indexedValidatorsKeys = (await watcher.validatorSlots.getValidatorSlots() as Record<string, string>);
 
         head.message.body.proposer_slashings.forEach((proposerSlashing: any) => {
             // console.log("proposerSlashing", proposerSlashing)
             const signedHeader1 = proposerSlashing.signed_header_1;
             const proposerIndex = signedHeader1.message.proposer_index;
-            const proposerKey = watcher.indexedValidatorsKeys[proposerIndex];
+            const proposerKey = indexedValidatorsKeys[proposerIndex];
 
             // console.log("slashed proposer:", proposerIndex)
             // when the validator hasn't been indexed
@@ -78,7 +79,7 @@ export class SlashingHandler extends WatcherHandler {
 
             // console.log("slashed attesters:", attesters)
             attesters.forEach(attester => {
-                const attesterKey = watcher.indexedValidatorsKeys[attester];
+                const attesterKey = indexedValidatorsKeys[attester];
                 // when the validator hasn't been indexed
                 if (!attesterKey) {
                     slashings.push({ index: attester, owner: 'not_indexed', duty: 'attester' });
