@@ -10,7 +10,8 @@
     "indexer:dev": "ts-node src/indexer.ts",
     "start:dev": "ts-node src/main.ts",
     "build": "tsc --resolveJsonModule",
-    "start": "node dist/index.js"
+    "start": "node dist/main.js",
+    "indexer": "node dist/indexer.js"
   },
   "dependencies": {
     "@types/fs-extra": "^11.0.4",

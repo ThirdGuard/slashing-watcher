@@ -7,6 +7,7 @@ export const NETWORK_NAME = process.env['NETWORK_NAME'] || 'mainnet';
 
 // export const SLOTS_RANGE = process.env['SLOTS_RANGE'] || '7858465-7858467';
 // export const SLOTS_RANGE = process.env['SLOTS_RANGE'] || '6142319-6142321'; // random proposer slashing
-export const SLOTS_RANGE = process.env['SLOTS_RANGE'] || '6213851-6213858'; //rockLogic attester slashings
+// export const SLOTS_RANGE = process.env['SLOTS_RANGE'] || '6213851-6213858'; //rockLogic attester slashings
+export const SLOTS_RANGE = process.env['SLOTS_RANGE'] || '';
 
 export const CYCLE_SLEEP_IN_SECONDS = parseInt(process.env['CYCLE_SLEEP_IN_SECONDS'] || '2');
