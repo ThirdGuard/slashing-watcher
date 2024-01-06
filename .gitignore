@@ -7,3 +7,5 @@ forta.config.json
 version.json
 .DS_Store
 .idea
+lido-validator-keys.json
+validator-slots.json

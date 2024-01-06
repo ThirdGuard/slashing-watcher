@@ -518,6 +518,11 @@ create-require@^1.1.0:
   resolved "https://registry.yarnpkg.com/create-require/-/create-require-1.1.1.tgz#c1d7e8f1e5f6cfc9ff65f9cd352d37348756c333"
   integrity sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==
 
+croner@^7.0.1:
+  version "7.0.5"
+  resolved "https://registry.yarnpkg.com/croner/-/croner-7.0.5.tgz#96aede5defc4833078147e4d0c2ddc943f23e566"
+  integrity sha512-15HLCD7iXnMe5km54yc4LN5BH+Cg9uCQvbkJ0acHxFffE29w3Uvgb9s/l310UCVUgMwGSBNw9BAHsEb5uMgj1g==
+
 decompress-response@^6.0.0:
   version "6.0.0"
   resolved "https://registry.yarnpkg.com/decompress-response/-/decompress-response-6.0.0.tgz#ca387612ddb7e104bd16d85aab00d5ecf09c66fc"
