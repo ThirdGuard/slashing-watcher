@@ -1,3 +1,5 @@
+// import { ChainReorgEvent, BlockHeaderResponseData, FullBlockInfo } from './consensus/consensus';
+import { WatcherHandler } from './handlers/handler';
 import { CONSENSUS_CLIENT_URI, CYCLE_SLEEP_IN_SECONDS, SECONDS_PER_SLOT, SLOTS_PER_EPOCH, SLOTS_RANGE } from './constants';
 import { ConsensusClient } from './consensus/consensus';
 import { BlockCacheService } from './consensus/block-cache';
@@ -7,34 +9,35 @@ import { ethers } from 'ethers';
 
 const KEEP_MAX_HANDLED_HEADERS_COUNT = 96;
 
-type WatcherHandler = any;
 type ChainReorgEvent = any;
-type NamedKey = any;
 type FullBlockInfo = any;
-type BaseSource = any;
 
 
 export class Watcher {
     private consensus: ConsensusClient;
+    // private alertmanager: AlertmanagerClient;
+    // private genesisTime: number;
     private handlers: WatcherHandler[];
-    private validatorsUpdated: boolean;
+    // private chainReorgEventListener: NodeJS.Timeout | null;
     public validatorSlots: ValidatorSlots = new ValidatorSlots();
+    // private chainReorgs: Map<string, ChainReorgEvent>;
+    // private handledHeaders: BlockHeaderResponseData[];
     private handledHeaders: any[];
     public provider: ethers.providers.JsonRpcProvider;
 
     constructor(handlers: WatcherHandler[], provider: ethers.providers.JsonRpcProvider) {
         this.provider = provider;
+        // this.execution = web3;
         this.consensus = new ConsensusClient(CONSENSUS_CLIENT_URI, new BlockCacheService());
+        // this.alertmanager = new AlertmanagerClient(ALERTMANAGER_URI);
         this.handlers = handlers;
-        this.validatorsUpdated = false;
+        // this.chainReorgEventListener = null;
+        // this.chainReorgs = new Map();
+        // this.genesisTime = -1;
         this.handledHeaders = [];
     }
 
     public async run(slotsRange: string | undefined = SLOTS_RANGE) {
-        if (!this.validatorsUpdated) {
-            await this.updateValidators();
-            this.validatorsUpdated = true;
-        }
         // this.genesisTime = await this.consensus.getGenesis();
         const _run = async (slotToHandle: string = 'head') => {
             const currentHead = await this.getHeaderFullInfo(slotToHandle);
@@ -64,6 +67,7 @@ export class Watcher {
                     // if (e instanceof NotOkResponse && e.status === 404) {
                     if (e && e.status === 404) {
                         // Handle 404 error
+                        console.error(`404 Error while handling slot ${slot}: ${e.message}`);
                     } else {
                         console.error(`Error while handling slot ${slot}: ${e.message}`);
                     }
@@ -98,7 +102,7 @@ export class Watcher {
         }
     }
 
-    public async updateValidators(): Promise<void> {
+    public async indexValidators(): Promise<void> {
         // Calculate the current slot based on the current time and genesis time
         const now = Date.now() / 1000; // Date.now() returns milliseconds, so divide by 1000 to get seconds
         const diff = now - await this.consensus.getGenesis();
@@ -107,11 +111,6 @@ export class Watcher {
         // console.log("slot", slot)
 
         const indexedValidatorsKeys = (await this.validatorSlots.getValidatorSlots() as Record<string, string>);
-        // Check if an update is needed
-        if (Object.keys(indexedValidatorsKeys).length > 0 && slot % SLOTS_PER_EPOCH !== 0) {
-            console.log("indexed validator slots exist")
-            return;
-        }
 
         console.info('Updating indexed validators keys');
 

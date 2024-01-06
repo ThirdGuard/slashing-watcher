@@ -1,4 +1,4 @@
-import { outputFile, readFile } from "fs-extra";
+import { outputFile, readFile, exists } from "fs-extra";
 import { join } from "path";
 
 export async function writeValidatorSlotsToFile(validatorSlots: any) {
@@ -37,6 +37,9 @@ export class ValidatorSlots {
         const jsonFilePath = join(__dirname, '../validator-slots.json');
 
         try {
+            if (!await exists(jsonFilePath)) {
+                return {}
+            }
             // Read the JSON file asynchronously using fs-extra
             const rawData = await readFile(jsonFilePath, 'utf-8');
 
