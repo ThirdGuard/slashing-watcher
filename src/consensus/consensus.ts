@@ -5,6 +5,8 @@ import { range } from '../utils/utils';
 import { rejectDelay } from '../utils/utils';
 import { retrier } from '../utils/utils';
 import { urljoin } from '../utils/urljoin';
+import { parser } from 'stream-json';
+import { streamObject } from 'stream-json/streamers/StreamObject';
 
 import { BlockCache, BlockCacheService } from './block-cache';
 import { MaxDeepError, ResponseError, errCommon, errRequest } from './errors';
@@ -126,7 +128,7 @@ export class ConsensusClient {
 
         return blockHeader;
     }
-    public async getValidatorsState(stateId: StateId): Promise<string> {
+    public async getValidatorsState(stateId: StateId): Promise<any> {
         return await this.retryRequest(async (apiURL: string) => await this.apiGetStream(apiURL, this.endpoints.validatorsState(stateId)), {
             dataOnly: false,
         });
@@ -223,37 +225,45 @@ export class ConsensusClient {
         }
     }
 
-    protected async apiGetStream(apiURL: string, subUrl: string): Promise<string> {
+
+    protected async apiGetStream(apiURL: string, subUrl: string): Promise<any> {
         const readStream = got.stream.get(urljoin(apiURL, subUrl), {
             timeout: { ...REQUEST_TIMEOUT_POLICY_MS, response: CL_API_GET_RESPONSE_TIMEOUT },
         });
 
         return new Promise((resolve, reject) => {
-
-            let data = '';
+            const jsonParser = parser();
+            const stream = streamObject();
 
             readStream.on('response', (r: Response) => {
-                if (r.statusCode != 200) {
+                if (r.statusCode !== 200) {
                     reject(new HTTPError(r));
                     return;
                 }
 
-                readStream.on('data', (chunk) => {
-                    data += chunk;
+                readStream.pipe(jsonParser).pipe(stream);
+
+                let result: any = {};
+                stream.on('data', ({ key, value }) => {
+                    result[key] = value;
                 });
 
-                readStream.on('end', () => {
-                    resolve(data);
+                stream.on('end', () => {
+                    resolve(result);
                 });
             });
 
-            readStream.on('error', (e) => {
-                if (e instanceof HTTPError) {
-                    reject(new ResponseError(errRequest(<string>e.response.body, subUrl, apiURL), e.response.statusCode));
-                } else {
-                    reject(new ResponseError(errCommon(e.message, subUrl, apiURL)));
-                }
+            readStream.on('error', (e: Error) => {
+                reject(new Error(`Error while streaming data from ${subUrl}: ${e.message}`));
             });
-        })
+
+            jsonParser.on('error', (e: Error) => {
+                reject(new Error(`Error while parsing JSON data from ${subUrl}: ${e.message}`));
+            });
+
+            stream.on('error', (e: Error) => {
+                reject(new Error(`Error while processing streamed JSON data from ${subUrl}: ${e.message}`));
+            });
+        });
     }
 }

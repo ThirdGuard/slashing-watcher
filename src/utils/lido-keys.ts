@@ -118,7 +118,9 @@ export class KeyCollector {
     async writeKeysToFile(validatorKeys: Validator[]) {
         //output to json file
         const DIR = join(process.cwd());
-        await outputFile(`${DIR}/src/lido-validator-keys.json`, JSON.stringify(validatorKeys, null, 2));
+        const filePath = `${DIR}/dist/lido-validator-keys.json`;
+        console.log('write:', filePath)
+        await outputFile(filePath, JSON.stringify(validatorKeys, null, 2));
     }
 
     async getLidoKeys() {
@@ -132,6 +134,7 @@ export class KeyCollector {
 
         // Define the path to the JSON file
         const jsonFilePath = join(__dirname, '../lido-validator-keys.json');
+        console.log("read:", jsonFilePath)
 
         try {
             // Read the JSON file asynchronously using fs-extra

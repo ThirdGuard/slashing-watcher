@@ -543,6 +543,25 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/stream-chain@npm:*":
+  version: 2.0.4
+  resolution: "@types/stream-chain@npm:2.0.4"
+  dependencies:
+    "@types/node": "*"
+  checksum: 355a7ee0ebfaf977b9e376a288da0e65da17ee55892a24b6d369c7027c2dfea16f105fb856f8da473ff3462a8fdc52f6d2e837cbc5bab334fa89cbe97f39ac3e
+  languageName: node
+  linkType: hard
+
+"@types/stream-json@npm:^1.7.7":
+  version: 1.7.7
+  resolution: "@types/stream-json@npm:1.7.7"
+  dependencies:
+    "@types/node": "*"
+    "@types/stream-chain": "*"
+  checksum: 5ab30cb5c478bec6969b788343293fb5d268a2164947617a8550b336f80a1e85d354e510e823e0a4b4dd21c932f921f7146ef426a87df8834a5984a1d943ed1e
+  languageName: node
+  linkType: hard
+
 "acorn-walk@npm:^8.1.1":
   version: 8.3.0
   resolution: "acorn-walk@npm:8.3.0"
@@ -991,15 +1010,33 @@ __metadata:
   dependencies:
     "@types/fs-extra": ^11.0.4
     "@types/node": ^20.10.0
+    "@types/stream-json": ^1.7.7
     croner: ^7.0.1
     ethers: 5.7.0
     fp-ts: ^2.16.1
     fs-extra: ^11.2.0
     got-cjs: ^12.5.4
+    stream-json: ^1.8.0
     ts-node: ^10.9.1
     typescript: ^5.3.2
   languageName: unknown
   linkType: soft
+
+"stream-chain@npm:^2.2.5":
+  version: 2.2.5
+  resolution: "stream-chain@npm:2.2.5"
+  checksum: c83cbf504bd11e2bcbe761a92801295b3decac7ffa4092ceffca2eb1b5d0763bcc511fa22cd8044e8a18c21ca66794fd10c8d9cd1292a3e6c0d83a4194c6b8ed
+  languageName: node
+  linkType: hard
+
+"stream-json@npm:^1.8.0":
+  version: 1.8.0
+  resolution: "stream-json@npm:1.8.0"
+  dependencies:
+    stream-chain: ^2.2.5
+  checksum: c17ac72228815850fc5226d8c0a80afd6c2ffbfa71c572ad99ad2eac145dc836a3fc6f62a298b3df716f1726cc1ed8a448892ed9fb6123f46abf2f89c908749f
+  languageName: node
+  linkType: hard
 
 "ts-node@npm:^10.9.1":
   version: 10.9.1

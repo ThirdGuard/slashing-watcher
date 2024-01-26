@@ -37,7 +37,8 @@ export class Watcher {
         this.handledHeaders = [];
     }
 
-    public async run(slotsRange: string | undefined = SLOTS_RANGE) {
+    public async run(slotsRange: string = "") {
+        console.log('initialised slotsRange:', slotsRange)
         // this.genesisTime = await this.consensus.getGenesis();
         const _run = async (slotToHandle: string = 'head') => {
             const currentHead = await this.getHeaderFullInfo(slotToHandle);
@@ -60,6 +61,7 @@ export class Watcher {
 
         if (slotsRange) {
             const [start, end] = slotsRange.split('-').map(Number);
+            console.log('Watching block range:', start, end)
             for (let slot = start; slot <= end; slot++) {
                 try {
                     await _run(slot.toString());
@@ -74,6 +76,7 @@ export class Watcher {
                 }
             }
         } else {
+            console.log('Watching latest blocks')
             while (true) {
                 try {
                     //@todo
@@ -120,7 +123,7 @@ export class Watcher {
             console.log("Received validator keys")
 
             // // Assuming parseValidators is a method that processes the data and updates indexedValidatorsKeys
-            const newValidatorsKeys = parseValidators(JSON.parse(data), indexedValidatorsKeys);
+            const newValidatorsKeys = parseValidators(data, indexedValidatorsKeys);
 
             console.info(`Indexed validators keys updated`);
             // VALIDATORS_INDEX_SLOT_NUMBER.set(slot); // Assuming VALIDATORS_INDEX_SLOT_NUMBER is a global or static variable

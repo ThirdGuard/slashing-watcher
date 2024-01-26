@@ -4,7 +4,9 @@ import { join } from "path";
 export async function writeValidatorSlotsToFile(validatorSlots: any) {
     //output to json file
     const DIR = join(process.cwd());
-    await outputFile(`${DIR}/src/validator-slots.json`, JSON.stringify(validatorSlots, null, 2));
+    const filePath = `${DIR}/dist/validator-slots.json`;
+    console.log('write:', filePath)
+    await outputFile(filePath, JSON.stringify(validatorSlots, null, 2));
 }
 
 export function parseValidators(data: any, currentIndexes: Record<string, string>): Record<string, string> {
@@ -35,6 +37,7 @@ export class ValidatorSlots {
 
         // Define the path to the JSON file
         const jsonFilePath = join(__dirname, '../validator-slots.json');
+        console.log("read:", jsonFilePath)
 
         try {
             if (!await exists(jsonFilePath)) {
