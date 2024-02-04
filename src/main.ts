@@ -1,3 +1,4 @@
+import { SLOTS_RANGE } from "./constants";
 import { SlashingHandler } from "./handlers/slashing";
 import { Watcher } from "./watcher";
 import { ethers } from "ethers";
@@ -10,7 +11,7 @@ function main() {
     const handlers: any = [
         new SlashingHandler(ethersProvider),
     ];
-    new Watcher(handlers, ethersProvider).run();
+    new Watcher(handlers, ethersProvider).run(SLOTS_RANGE);
 }
 
 main()

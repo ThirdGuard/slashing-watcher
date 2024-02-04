@@ -5,6 +5,8 @@ import { Watcher } from 'src/watcher';
 import NODE_OPERATORS_REGISTRY_ABI from "../abi/NodeOperatorsRegistry.json";
 import { ethers } from 'ethers';
 import { KeyCollector } from '../utils/lido-keys';
+import { Finding, FindingSeverity } from '../utils/finding';
+import { AlertManager, ThresholdAlertManager } from '../utils/alertManager';
 
 
 type Duty = 'proposer' | 'attester';
@@ -27,17 +29,28 @@ export type PubKeyData = {
 
 export class SlashingHandler extends WatcherHandler {
 
-    nodeOperatorRegistry: ethers.Contract;
+    lidoNodeOperatorRegistry: ethers.Contract;
     lidoKeyClass: KeyCollector;
+    // if 100 validators are slashed within a 1 hour period
+    lidoCriticalAlerter: ThresholdAlertManager = new ThresholdAlertManager(
+        { limit: 100, timePeriod: 60 * 60 }
+    )
+    devNotIndexedAlerter: AlertManager = new AlertManager(
+        { severity: 5, interval: 60 * 60, alert_id: "ADMIN_NOT_INDEXED_SLASHED" }
+    )
+    // if 1 validator is slashed, send a critical alert with a 1 hr cooldown
+    devLidoCriticalAlerter: AlertManager = new AlertManager(
+        { severity: 5, interval: 60 * 60, alert_id: "ADMIN_LIDO_SLASHED" }
+    )
 
     constructor(provider: ethers.providers.Provider) {
         super()
-        this.nodeOperatorRegistry = new ethers.Contract(
+        this.lidoNodeOperatorRegistry = new ethers.Contract(
             NODE_OPERATORS_REGISTRY_ADDRESS,
             NODE_OPERATORS_REGISTRY_ABI,
             provider,
         );
-        this.lidoKeyClass = new KeyCollector(this.nodeOperatorRegistry);
+        this.lidoKeyClass = new KeyCollector(this.lidoNodeOperatorRegistry);
     }
 
     override async handle(watcher: Watcher, head: FullBlockInfo): Promise<void> {
@@ -104,68 +117,172 @@ export class SlashingHandler extends WatcherHandler {
         if (!slashings.length) {
             console.debug(`No slashings in block [${head.message.slot}]`);
         } else {
-            console.info(`Slashings in block [${head.message.slot}]: ${slashings.length}`);
-            this.sendAlerts(watcher, head, slashings);
+            // console.info(`Slashings in block [${head.message.slot}]: ${slashings.length}`);
+            await this.processSlashings(watcher, head, slashings);
         }
 
         // return slashings;
     }
 
-    private async sendAlerts(watcher: Watcher, head: BlockDetailsResponse, slashings: SlashingInfo[]) {
-        const allSlashings = slashings;
-        // console.log(slashings)
+    // every lido slashing has a critical dev alert
+    // every 100 lido slashings in a 1 hr period has a critical customer alert
+    // every lido slashing has a info alert
+    // every not_indexed slashing has a critical dev alert
+    private async processSlashings(watcher: Watcher, head: BlockDetailsResponse, slashings: SlashingInfo[]) {
+        let alerts: any[] = []
 
-        // get all unique node operators id
-        let operatorKeys: any = {}
-        slashings.forEach(slash => {
-            if (slash.operator) {
-                operatorKeys[slash.operator] = true;
-            }
-        })
-        const allOperators = Object.keys(operatorKeys);
-
-        // map unique node operator ids to their name on-chain
-        const operatorNames = await Promise.all(allOperators.map(op => this.nodeOperatorRegistry.getNodeOperator(op, true)))
-        operatorNames.forEach((val, i) => {
-            operatorKeys[allOperators[i]] = val.name;
-        })
-        // console.log(slashings)
         const lidoSlashings = slashings.filter(s => s.owner === 'lido');
         const unknownSlashings = slashings.filter(s => s.owner === 'unknown');
         const notIndexedSlashings = slashings.filter(s => s.owner === 'not_indexed');
-
-        if (allSlashings.length > 0) {
-            const summary = `slashings::total:${allSlashings.length} - lido:${lidoSlashings.length} - unknown:${unknownSlashings.length} - notIndexed:${notIndexedSlashings.length}`;
-            let description = '';
-            const byOperator: Record<string, SlashingInfo[]> = {};
-
-            allSlashings.forEach(slashing => {
-                const operator = slashing.operator ?? 'unknown';
-                byOperator[operator] = byOperator[operator] || [];
-                byOperator[operator].push(slashing);
-            });
-
-            Object.entries(byOperator).forEach(([operator, operatorSlashing]) => {
-                description += `Operator: ${operatorKeys[operator] || "unknown"}:${operator} -`;
-                const byDuty: Record<string, SlashingInfo[]> = {};
-
-                operatorSlashing.forEach(slashing => {
-                    byDuty[slashing.duty] = byDuty[slashing.duty] || [];
-                    byDuty[slashing.duty].push(slashing);
-                });
-
-                Object.entries(byDuty).forEach(([duty, dutyGroup]) => {
-                    description += ` Violated duty: ${duty} | Validators: `;
-                    description += '[' + dutyGroup.map(slashing => `[${slashing.index}](http://${NETWORK_NAME}.beaconcha.in/validator/${slashing.index})`).join(', ') + ']';
-                });
-            });
-
-            description += `\n\nslot: [${head.message.slot}](https://${NETWORK_NAME}.beaconcha.in/slot/${head.message.slot})`;
-            console.log(summary)
-            console.log(description)
-            // const alert = new CommonAlert("HeadWatcherUserSlashing", "critical");
-            // this.sendAlert(watcher, alert.buildBody(summary, description, ADDITIONAL_ALERTMANAGER_LABELS));
+        const summary = `slot:${head.message.slot} - slashings::total:${lidoSlashings.length} - lido:${lidoSlashings.length} - unknown:${unknownSlashings.length} - notIndexed:${notIndexedSlashings.length}`;
+        console.log(summary)
+        const lidoFindings = await this.processLidoSlashings(watcher, head, lidoSlashings)
+        const notIndexedFindings = this.processNotIndexedSlashings(watcher, head, notIndexedSlashings)
+        const unknownFindings = this.processUnknownSlashings(head, unknownSlashings)
+        alerts = [...alerts, ...unknownFindings, ...notIndexedFindings, ...lidoFindings];
+        if (alerts.length) {
+            await this.sendWebhook(alerts);
         }
+    }
 
+
+    private async processLidoSlashings(watcher: Watcher, head: BlockDetailsResponse, lidoSlashings: SlashingInfo[]) {
+        // map unique node operator ids to their name on-chain
+        const operatorNames = await Promise.all(lidoSlashings.map(s => this.lidoNodeOperatorRegistry.getNodeOperator(s.operator, true)))
+        const operatorNamesObj: Record<any, string> = operatorNames.reduce((acc, val, i) => {
+            acc[(lidoSlashings[i].operator as number)] = val.name
+            return acc
+        }, {})
+        // console.log(slashings)
+        let findings = []
+
+        if (lidoSlashings.length > 0) {
+            const byOperator: Record<string, { slashings: SlashingInfo[], attester: SlashingInfo[], proposer: SlashingInfo[] }> = {};
+
+            lidoSlashings.forEach(slashing => {
+                const operator = slashing.operator ?? 'unknown';
+                byOperator[operator] = byOperator[operator] || { slashings: [], attester: [], proposer: [] };
+                byOperator[operator].slashings.push(slashing);
+                byOperator[operator][slashing.duty].push(slashing);
+            });
+
+            const description = this.createDescription(byOperator, operatorNamesObj)
+
+            // console.log(description)
+            let slotDesc = `[${head.message.slot}](https://${NETWORK_NAME}.beaconcha.in/slot/${head.message.slot})`
+            // console.log("slot timestamp", watcher.getSlotTimestamp(head.message.slot))
+            let now = watcher.getSlotTimestamp(head.message.slot);
+            // send an informational alert for any slashing
+            findings.push(this.createFinding(
+                `${lidoSlashings.length} LIDO Validators Slashed`,
+                description, slotDesc, "LIDO_VALIDATORS_SLASHED", FindingSeverity.Info
+            ))
+            // escalate a critical alert if significant slashings occur
+            if (this.lidoCriticalAlerter.shouldAlert(now, lidoSlashings.length)) {
+                findings.push(this.lidoCriticalAlerter.sendAlert(
+                    now,
+                    this.createFinding(
+                        `Significant LIDO Validators Slashed`,
+                        `${this.lidoCriticalAlerter.criticalThreshold.count} lido validators slashed within ${now - this.lidoCriticalAlerter.criticalThreshold.firstCountTime} seconds`, slotDesc, "SIGNIFICANT_LIDO_VALIDATORS_SLASHED", FindingSeverity.Critical
+                    )
+                ))
+            }
+            // send critical alert to devs
+            if (this.devLidoCriticalAlerter.shouldAlert(now)) {
+                findings.push(this.devLidoCriticalAlerter.sendAlert(
+                    now,
+                    this.createFinding(
+                        `${lidoSlashings.length} LIDO Validators Slashed`,
+                        description, slotDesc, this.devLidoCriticalAlerter.alertId, FindingSeverity.Critical
+                    )
+                ))
+            }
+        }
+        return findings
+    }
+
+    private processUnknownSlashings(head: BlockDetailsResponse, unknownSlashings: SlashingInfo[]) {
+        let findings = []
+        if (unknownSlashings.length > 0) {
+            const byOperator: Record<string, { slashings: SlashingInfo[], attester: SlashingInfo[], proposer: SlashingInfo[] }> = {};
+
+            unknownSlashings.forEach(slashing => {
+                const operator = 'unknown';
+                byOperator[operator] = byOperator[operator] || { slashings: [], attester: [], proposer: [] };
+                byOperator[operator].slashings.push(slashing);
+                byOperator[operator][slashing.duty].push(slashing);
+            });
+            const description = this.createDescription(byOperator, {})
+
+            // console.log(description)
+            let slotDesc = `[${head.message.slot}](https://${NETWORK_NAME}.beaconcha.in/slot/${head.message.slot})`
+            if (unknownSlashings.length > 0) {
+                findings.push(this.createFinding(
+                    `${unknownSlashings.length} Unknown Validators Slashed`,
+                    description, slotDesc, "UNKNOWN_VALIDATORS_SLASHED", FindingSeverity.Info
+                ))
+            }
+        }
+        return findings
+    }
+
+    private processNotIndexedSlashings(watcher: Watcher, head: BlockDetailsResponse, notIndexedSlashings: SlashingInfo[]) {
+        let findings = []
+        if (notIndexedSlashings.length > 0) {
+            const byOperator: Record<string, { slashings: SlashingInfo[], attester: SlashingInfo[], proposer: SlashingInfo[] }> = {};
+
+            notIndexedSlashings.forEach(slashing => {
+                const operator = 'not_indexed';
+                byOperator[operator] = byOperator[operator] || { slashings: [], attester: [], proposer: [] };
+                byOperator[operator].slashings.push(slashing);
+                byOperator[operator][slashing.duty].push(slashing);
+            });
+
+            const description = this.createDescription(byOperator, {})
+
+            // console.log(description)
+            let now = watcher.getSlotTimestamp(head.message.slot);
+            let slotDesc = `[${head.message.slot}](https://${NETWORK_NAME}.beaconcha.in/slot/${head.message.slot})`
+            if (notIndexedSlashings.length > 0) {
+                findings.push(this.createFinding(
+                    `${notIndexedSlashings.length} Non-Indexed Validators Slashed`,
+                    description, slotDesc, "NON_INDEXED_VALIDATORS_SLASHED", FindingSeverity.Info
+                ))
+                if (this.devNotIndexedAlerter.shouldAlert(now)) {
+                    findings.push(Finding.fromObject(this.devNotIndexedAlerter.sendAlert(
+                        now,
+                        this.createFinding(
+                            `${notIndexedSlashings.length} Non-Indexed Validators Slashed`,
+                            description, slotDesc, "ADMIN_NOT_INDEXED_SLASHED", FindingSeverity.Critical
+                        )
+                    )))
+                }
+            }
+        }
+        return findings
+    }
+
+    // create the description of the slashing alert with the operators etc
+    createDescription(byOperator: Record<string, {
+        slashings: SlashingInfo[];
+        attester: SlashingInfo[];
+        proposer: SlashingInfo[];
+    }>, operatorNames: Record<any, string>) {
+        let description = '';
+        Object.entries(byOperator).forEach(([operator, operatorSlashing]) => {
+            description += `Operator: ${operatorNames[operator] || "unknown"}:${operator} -`;
+
+            if (operatorSlashing.attester.length) {
+                description += ` Violated duty: attester | Validators: `;
+                description += '[' + operatorSlashing.attester.map(slashing => `${slashing.index}`).join(', ') + ']';
+                // (http://${NETWORK_NAME}.beaconcha.in/validator/${slashing.index})
+            }
+            if (operatorSlashing.proposer.length) {
+                description += ` Violated duty: proposer | Validators: `;
+                description += '[' + operatorSlashing.proposer.map(slashing => `${slashing.index}`).join(', ') + ']';
+                // (http://${NETWORK_NAME}.beaconcha.in/validator/${slashing.index})
+            }
+        });
+        return description
     }
 }

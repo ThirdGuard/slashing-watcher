@@ -9,8 +9,11 @@
   "scripts": {
     "indexer:dev": "ts-node src/indexer.ts",
     "start:dev": "ts-node src/main.ts",
+    "start:dev:rocklogic": "SLOTS_RANGE='6213851-6213858' ts-node src/main.ts",
+    "start:dev:random": "SLOTS_RANGE='6142319-6142321' ts-node src/main.ts",
+    "start:dev:random2": "SLOTS_RANGE='8216219-8216221' ts-node src/main.ts",
     "build": "tsc --resolveJsonModule",
-    "start": "node dist/main.js",
+    "start": "yarn build && node dist/main.js",
     "indexer": "yarn build && node dist/indexer.js"
   },
   "dependencies": {

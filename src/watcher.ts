@@ -1,6 +1,6 @@
 // import { ChainReorgEvent, BlockHeaderResponseData, FullBlockInfo } from './consensus/consensus';
 import { WatcherHandler } from './handlers/handler';
-import { CONSENSUS_CLIENT_URI, CYCLE_SLEEP_IN_SECONDS, SECONDS_PER_SLOT, SLOTS_PER_EPOCH, SLOTS_RANGE } from './constants';
+import { CONSENSUS_CLIENT_URI, CYCLE_SLEEP_IN_SECONDS, SECONDS_PER_SLOT } from './constants';
 import { ConsensusClient } from './consensus/consensus';
 import { BlockCacheService } from './consensus/block-cache';
 import { ValidatorSlots, parseValidators, writeValidatorSlotsToFile } from './utils/validator-slots';
@@ -24,6 +24,7 @@ export class Watcher {
     // private handledHeaders: BlockHeaderResponseData[];
     private handledHeaders: any[];
     public provider: ethers.providers.JsonRpcProvider;
+    public genesisTime!: number;
 
     constructor(handlers: WatcherHandler[], provider: ethers.providers.JsonRpcProvider) {
         this.provider = provider;
@@ -39,7 +40,7 @@ export class Watcher {
 
     public async run(slotsRange: string = "") {
         console.log('initialised slotsRange:', slotsRange)
-        // this.genesisTime = await this.consensus.getGenesis();
+        this.genesisTime = await this.consensus.getGenesis();
         const _run = async (slotToHandle: string = 'head') => {
             const currentHead = await this.getHeaderFullInfo(slotToHandle);
             if (!currentHead) {
@@ -90,6 +91,10 @@ export class Watcher {
                 }
             }
         }
+    }
+
+    getSlotTimestamp(slot: number) {
+        return this.genesisTime + (SECONDS_PER_SLOT * slot);
     }
 
     private async handleHead(head: FullBlockInfo): Promise<void> {
