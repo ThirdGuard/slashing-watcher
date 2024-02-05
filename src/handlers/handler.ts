@@ -5,20 +5,12 @@ import { Watcher } from '../watcher';
 
 type FullBlockInfo = any;
 
-export abstract class WatcherHandler {
-    initialised: boolean = false;
-    constructor() { }
+export class Spiderman {
 
-    async handle(watcher: Watcher, head: FullBlockInfo): Promise<void> {
-    };
-
-    async sendInitHook() {
-        if (!this.initialised) {
-            await this.sendWebhook([
-                this.createFinding("Slashing Agent Launched", "slashing handler has launched", new Date(Math.floor(Date.now() / 1000) * 1000).toString(), "LIDO-AGENT-LAUNCHED", FindingSeverity.Info)
-            ]);
-            this.initialised = true;
-        }
+    async sendAlert(name: string, description: string, alertId: string, severity: FindingSeverity) {
+        await this.sendWebhook([
+            this.createFinding(name, description, new Date(Math.floor(Date.now() / 1000) * 1000).toString(), alertId, severity)
+        ]);
     }
 
     protected async sendWebhook(alerts: any) {
@@ -46,6 +38,25 @@ export abstract class WatcherHandler {
             }), "source": {
                 block: { hash: slotDesc }
             }
+        }
+    }
+}
+
+export abstract class WatcherHandler extends Spiderman {
+    initialised: boolean = false;
+    constructor() {
+        super()
+    }
+
+    async handle(watcher: Watcher, head: FullBlockInfo): Promise<void> {
+    };
+
+    async sendInitHook() {
+        if (!this.initialised) {
+            await this.sendWebhook([
+                this.createFinding("Slashing Agent Launched", "slashing handler has launched", new Date(Math.floor(Date.now() / 1000) * 1000).toString(), "LIDO-AGENT-LAUNCHED", FindingSeverity.Info)
+            ]);
+            this.initialised = true;
         }
     }
 }
