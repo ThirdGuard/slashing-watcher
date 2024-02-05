@@ -3,8 +3,8 @@ import { Watcher } from "./watcher";
 import { KeyCollector, NODE_OPERATORS_REGISTRY_ADDRESS } from './utils/lido-keys';
 import { ethers } from "ethers";
 import NODE_OPERATORS_REGISTRY_ABI from "./abi/NodeOperatorsRegistry.json";
+import { RPC_URL } from "./constants";
 
-const RPC_URL = "INSERT_URL_HERE"
 export const ethersProvider = new ethers.providers.JsonRpcProvider(RPC_URL)
 
 const indexer = Cron("*/30 * * * *", async () => {

@@ -1,10 +1,9 @@
-import { SLOTS_RANGE } from "./constants";
+import { RPC_URL, SLOTS_RANGE } from "./constants";
 import { SlashingHandler } from "./handlers/slashing";
 import { Watcher } from "./watcher";
 import { ethers } from "ethers";
 
 
-const RPC_URL = "INSERT_URL_HERE"
 export const ethersProvider = new ethers.providers.JsonRpcProvider(RPC_URL)
 
 function main() {

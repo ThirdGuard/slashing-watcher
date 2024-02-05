@@ -249,13 +249,13 @@ export class SlashingHandler extends WatcherHandler {
                     description, slotDesc, "NON_INDEXED_VALIDATORS_SLASHED", FindingSeverity.Info
                 ))
                 if (this.devNotIndexedAlerter.shouldAlert(now)) {
-                    findings.push(Finding.fromObject(this.devNotIndexedAlerter.sendAlert(
+                    findings.push(this.devNotIndexedAlerter.sendAlert(
                         now,
                         this.createFinding(
                             `${notIndexedSlashings.length} Non-Indexed Validators Slashed`,
                             description, slotDesc, "ADMIN_NOT_INDEXED_SLASHED", FindingSeverity.Critical
                         )
-                    )))
+                    ))
                 }
             }
         }

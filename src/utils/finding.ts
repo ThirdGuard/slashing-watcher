@@ -9,6 +9,14 @@ export enum FindingSeverity {
     High,
     Critical
 }
+const pgSeverity: any = {
+    5: "CRITICAL",
+    4: "HIGH",
+    3: "MEDIUM",
+    2: "INFO",
+    1: "LOW",
+    0: "UNKNOWN"
+}
 
 export enum FindingType {
     Unknown,
@@ -90,7 +98,7 @@ export class Finding {
     toString() {
         return JSON.stringify({
             ...this,
-            severity: FindingSeverity[this.severity],
+            severity: pgSeverity[this.severity],
             type: FindingType[this.type],
             // labels: this.labels.map(l => Object.assign(l, {
             //     entityType: any[l.entityType]
@@ -124,6 +132,6 @@ export class Finding {
         // assertIsFromEnum(type, FindingType, 'type')
         // TODO assert metadata keys and values are strings
 
-        return new Finding(name, description, alertId, protocol, severity, type, metadata, addresses, labels, uniqueKey, source, timestamp)
+        return new Finding(name, description, alertId, protocol, pgSeverity[severity], type, metadata, addresses, labels, uniqueKey, source, timestamp)
     }
 }
