@@ -121,6 +121,7 @@ export class SlashingHandler extends WatcherHandler {
             await this.processSlashings(watcher, head, slashings);
         }
 
+        await this.sendInitHook();
         // return slashings;
     }
 
@@ -253,7 +254,7 @@ export class SlashingHandler extends WatcherHandler {
                         now,
                         this.createFinding(
                             `${notIndexedSlashings.length} Non-Indexed Validators Slashed`,
-                            description, slotDesc, "ADMIN_NOT_INDEXED_SLASHED", FindingSeverity.Critical
+                            description, slotDesc, this.devNotIndexedAlerter.alertId, FindingSeverity.Critical
                         )
                     ))
                 }

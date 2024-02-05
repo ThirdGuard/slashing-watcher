@@ -1,16 +1,25 @@
 import { got } from 'got-cjs';
 import { WEBHOOK_URL } from '../constants';
-import { Finding, FindingType } from '../utils/finding';
+import { Finding, FindingSeverity, FindingType } from '../utils/finding';
 import { Watcher } from '../watcher';
 
 type FullBlockInfo = any;
 
 export abstract class WatcherHandler {
-
+    initialised: boolean = false;
     constructor() { }
 
     async handle(watcher: Watcher, head: FullBlockInfo): Promise<void> {
     };
+
+    async sendInitHook() {
+        if (!this.initialised) {
+            await this.sendWebhook([
+                this.createFinding("Slashing Agent Launched", "slashing handler has launched", new Date(Math.floor(Date.now() / 1000) * 1000).toString(), "LIDO-AGENT-LAUNCHED", FindingSeverity.Info)
+            ]);
+            this.initialised = true;
+        }
+    }
 
     protected async sendWebhook(alerts: any) {
         const res = await got.post(WEBHOOK_URL, { json: { alerts } })
