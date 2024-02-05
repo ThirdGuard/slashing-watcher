@@ -13,8 +13,8 @@ const pgSeverity: any = {
     5: "CRITICAL",
     4: "HIGH",
     3: "MEDIUM",
-    2: "INFO",
-    1: "LOW",
+    2: "LOW",
+    1: "INFO",
     0: "UNKNOWN"
 }
 
