@@ -96,8 +96,10 @@ export class KeyCollector {
 
         let concurrent = [];
         const chunkSize = Math.min(minChunkSize, totalValidatorsNumber);
+        console.log(`lido-keys:totalValidators:${totalValidatorsNumber}`)
+        console.log(`lido-keys:chunkSize:${chunkSize}`)
         for (let i = 0; i < totalValidatorsNumber; i += chunkSize) {
-            console.log(i)
+            console.log(`lido-keys:i:${i}`)
             concurrent = []; // Reset the concurrent array for each chunk
 
             // Create a new chunk by slicing the array of validators

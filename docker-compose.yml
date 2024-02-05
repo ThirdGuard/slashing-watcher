@@ -1,0 +1,34 @@
+version: "3.7"
+
+services:
+  slashing-watcher:
+    environment:
+      # - SLOTS_RANGE=6213851-6213858
+      - RPC_URL=
+      - WEBHOOK_URL=http://host.docker.internal:5001/hook/ethereum
+    build:
+      context: .
+    restart: unless-stopped
+    networks:
+      - standalone_forta-node
+    volumes:
+      - slashing-data:/app/data
+
+  indexer:
+    environment:
+      - RPC_URL=
+    build:
+      context: .
+    restart: unless-stopped
+    command: yarn run indexer
+    networks:
+      - standalone_forta-node
+    volumes:
+      - slashing-data:/app/data
+
+networks:
+  internal_network:
+    external: true
+
+volumes:
+  slashing-data:
