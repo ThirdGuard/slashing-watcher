@@ -1,10 +1,11 @@
 import { outputFile, readFile, exists } from "fs-extra";
 import { join } from "path";
+import { FILE_CACHE_TIME } from "../constants";
 
 export async function writeValidatorSlotsToFile(validatorSlots: any) {
     //output to json file
     const DIR = join(process.cwd());
-    const filePath = `${DIR}/dist/validator-slots.json`;
+    const filePath = `${DIR}/data/validator-slots.json`;
     console.log('write:', filePath)
     await outputFile(filePath, JSON.stringify(validatorSlots, null, 2));
 }
@@ -28,15 +29,14 @@ export class ValidatorSlots {
 
     async getValidatorSlots() {
         const currentTime = Date.now();
-        const oneHour = 3600000; // One hour in milliseconds
 
         // Check if an hour has passed since the last read
-        if (currentTime - this.cache.lastReadTime < oneHour) {
+        if (currentTime - this.cache.lastReadTime < FILE_CACHE_TIME) {
             return this.cache.data; // Return cached data if less than an hour has passed
         }
 
         // Define the path to the JSON file
-        const jsonFilePath = join(__dirname, '../validator-slots.json');
+        const jsonFilePath = join(process.cwd(), '/data/validator-slots.json');
         console.log("read:", jsonFilePath)
 
         try {

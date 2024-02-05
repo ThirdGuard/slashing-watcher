@@ -1,7 +1,8 @@
 import { ethers } from "ethers";
 import { join } from 'path';
 import { outputFile, readFile } from 'fs-extra';
-import { PubKeyData } from "src/handlers/slashing";
+import { PubKeyData } from "../handlers/slashing";
+import { FILE_CACHE_TIME } from "../constants";
 
 export const NODE_OPERATORS_REGISTRY_ADDRESS = "0x55032650b14df07b85bf18a3a3ec8e0af2e028d5";
 // export const LIDO_WITHDRAWAL_QUEUE = "0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1"
@@ -118,22 +119,21 @@ export class KeyCollector {
     async writeKeysToFile(validatorKeys: Validator[]) {
         //output to json file
         const DIR = join(process.cwd());
-        const filePath = `${DIR}/dist/lido-validator-keys.json`;
+        const filePath = `${DIR}/data/lido-validator-keys.json`;
         console.log('write:', filePath)
         await outputFile(filePath, JSON.stringify(validatorKeys, null, 2));
     }
 
     async getLidoKeys() {
         const currentTime = Date.now();
-        const oneHour = 3600000; // One hour in milliseconds
 
         // Check if an hour has passed since the last read
-        if (currentTime - this.cache.lastReadTime < oneHour) {
+        if (currentTime - this.cache.lastReadTime < FILE_CACHE_TIME) {
             return this.cache.data; // Return cached data if less than an hour has passed
         }
 
         // Define the path to the JSON file
-        const jsonFilePath = join(__dirname, '../lido-validator-keys.json');
+        const jsonFilePath = join(process.cwd(), '/data/lido-validator-keys.json');
         console.log("read:", jsonFilePath)
 
         try {

@@ -44,7 +44,7 @@ export class Watcher {
         const _run = async (slotToHandle: string = 'head') => {
             const currentHead = await this.getHeaderFullInfo(slotToHandle);
             if (!currentHead) {
-                console.debug(`No new head, waiting ${CYCLE_SLEEP_IN_SECONDS} seconds`);
+                // console.debug(`No new head, waiting ${CYCLE_SLEEP_IN_SECONDS} seconds`);
                 await new Promise(resolve => setTimeout(resolve, CYCLE_SLEEP_IN_SECONDS * 1000));
                 return;
             }
